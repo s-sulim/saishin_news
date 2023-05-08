@@ -12,7 +12,8 @@ import androidx.navigation.Navigation
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.newsapp.R
-import com.example.newsapp.model.ApiInterface
+import com.example.newsapp.data.api.ApiInterface
+import com.example.newsapp.data.repository.Repository
 import com.example.newsapp.model.Article
 import com.example.newsapp.model.News
 import com.example.newsapp.view_model.NewsViewModel
@@ -21,16 +22,20 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-
-
-const val BASE_URL = "https://saurav.tech/"
 class MainFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var myNewsAdapter: NewsAdapter
     private lateinit var newsViewModel: NewsViewModel
-    val articles = ArrayList<Article>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        newsViewModel = ViewModelProvider(requireActivity())[NewsViewModel::class.java]
+
+        // Observe the changes to the data in the view model
+        newsViewModel.getArticleListLiveData().observe(this) { articles ->
+            myNewsAdapter.updateData(articles as ArrayList<Article>)
+        }
     }
 
     override fun onCreateView(
@@ -42,15 +47,20 @@ class MainFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        //newsViewModel = ViewModelProvider(this)[NewsViewModel::class.java]
-        newsViewModel = ViewModelProvider(requireActivity()).get(NewsViewModel::class.java)
-        myNewsAdapter = NewsAdapter { selectedArticle: Article ->                        //assigning our adapter as an adapter for rv
-            listItemClicked(selectedArticle)
-        }
+        newsViewModel = ViewModelProvider(requireActivity())[NewsViewModel::class.java]
         recyclerView = view.findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        myNewsAdapter = NewsAdapter { selectedArticle: Article ->
+            listItemClicked(selectedArticle)
+        }
         recyclerView.adapter = myNewsAdapter
-        fetchNews()
+
+        Repository().fetchNews { articles ->
+        newsViewModel.articleListLiveData.value = articles
+        myNewsAdapter.updateData(articles as ArrayList<Article>)
+
+
+        }
     }
     private fun listItemClicked(selectedArticle: Article){
         val navController: NavController = Navigation.findNavController(requireView())
@@ -59,34 +69,5 @@ class MainFragment : Fragment() {
         args.putString("description", selectedArticle.description)
         args.putString("imageUrl", selectedArticle.urlToImage)
         navController.navigate(R.id.action_mainFragment_to_detailsFragment, args);
-
-    }
-    private fun fetchNews() {
-        val retrofitBuilder = Retrofit.Builder()
-            .addConverterFactory(GsonConverterFactory.create())
-            .baseUrl(BASE_URL)
-            .build()
-            .create(ApiInterface::class.java)
-
-        val retrofitData = retrofitBuilder.getData()
-        retrofitData.enqueue(object : Callback<News?> {
-            override fun onResponse(
-                call: Call<News?>,
-                response: Response<News?>
-            ) {
-                val responseBody = response.body()!!
-                for (myData in responseBody.articles){
-                    articles.add(myData)
-                    newsViewModel.getArticleListLiveData().observe(viewLifecycleOwner, { articles ->
-                        myNewsAdapter.updateData(articles)
-                    })
-
-                }
-                newsViewModel.articleListLiveData.value = articles
-            }
-            override fun onFailure(call: Call<News?>, t: Throwable) {
-                Toast.makeText(requireContext(),"Couldn't connect to the internet.", Toast.LENGTH_SHORT).show()
-            }
-        })
     }
 }

@@ -7,8 +7,8 @@ import com.example.newsapp.model.Article
 
 class NewsViewModel: ViewModel() {
 
-    val articleListLiveData: MutableLiveData<ArrayList<Article>> = MutableLiveData()
-    fun getArticleListLiveData(): LiveData<ArrayList<Article>> {
+    val articleListLiveData: MutableLiveData<List<Article>> = MutableLiveData()
+    fun getArticleListLiveData(): LiveData<List<Article>> {
         return articleListLiveData
     }
 }
